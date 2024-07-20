@@ -1,6 +1,6 @@
 import dearpygui.dearpygui as dpg
 dpg.create_context()
-
+import dearpygui.demo as demo
 
 def add_win(sender):
     with dpg.window(label="dddddd"):
@@ -31,7 +31,7 @@ def debug(sender):
 def item_registry(sender):
     dpg.show_item_registry()
 
-
+demo.show_demo()
 
 with dpg.window(label="show window",tag = 100,show=True):
     dpg.add_button(label="exit",callback=hide_tag)
