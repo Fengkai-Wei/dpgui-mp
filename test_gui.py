@@ -2,6 +2,8 @@ import dearpygui.dearpygui as dpg
 import dearpygui.demo as demo
 import time
 import global_vars
+import numpy as np
+import copy
 
 import var_manage as vm
 global_vars.init()
@@ -27,7 +29,8 @@ def test_fun(sender,app_data,user_data):
 def add_obj(sender,app_data,user_data):
 
     object_add_window = dpg.window(
-        label = "add object",
+        label = "Main Window Add Object",
+        modal=True,
     )
     
     with object_add_window:
@@ -43,42 +46,31 @@ def add_obj(sender,app_data,user_data):
                     default_value="new object",
 
             )
-                stru = dpg.add_combo(items=list(var_dict['structure'].keys()),default_value=None)
+                def dum_print(sender,app_data,user_data):
+                    main_add = user_data[0]
+                    no_stru = user_data[1]
+                    dpg.configure_item(main_add,enabled = True)
+                    dpg.hide_item(no_stru)
+
+                stru = dpg.add_combo(items=list(var_dict['structure'].keys()),default_value=None,callback=dum_print,user_data=['main_add','no_stru_alert'])
                 material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=None)
 
                 def input_prepare(stru,input,mat):
                     last_win = dpg.last_root()
-                    if stru == "None":
-                        dpg.delete_item(last_win)
                         
+                    print(dpg.get_value(input))
+                    obj_add_func(sender=dpg.last_item(),
+                                app_data=None,
+                                user_data= [dpg.get_value(input),stru,mat]
+                                )
+                    dpg.delete_item(last_win)
                         
-                        with dpg.window(
-                            
-                            label="No structure alert",
-                            modal=True
-                        ):
-                            dpg.add_text('The strcuture is not specified! Unable to create geometric object.'),
-
-                            dpg.add_button(
-                                label="Back",
-                                callback=lambda: (dpg.delete_item(dpg.last_container()),
-                                                  
-                                                  )
-
-                            )
-                        
-                    else:
-                        
-                        print(dpg.get_value(input))
-                        obj_add_func(sender=dpg.last_item(),
-                                     app_data=None,
-                                     user_data= [dpg.get_value(input),stru,mat]
-                                     )
-                        dpg.delete_item(last_win)
-                        
+        no_structure_alert = dpg.tooltip(parent="main_add",tag='no_stru_alert')
+        dpg.add_button(label="add",tag='main_add',callback=lambda: input_prepare(stru=dpg.get_value(stru),input=obj_name_input,mat=dpg.get_value(material)),enabled= False,)
         
+        with no_structure_alert:
+            dpg.add_text('Structure must be specified.')
 
-        dpg.add_button(label="add",callback=lambda: input_prepare(stru=dpg.get_value(stru),input=obj_name_input,mat=dpg.get_value(material)) )
                               
 
 
@@ -103,13 +95,15 @@ def obj_add_func(sender,app_data,user_data):
     stru = user_data[1]
     material = user_data[2]
     if stru in var_dict['structure']:
-        temp_geo_class = var_dict['structure'][stru]
+        temp_geo_class = copy.deepcopy(var_dict['structure'][stru])
+        print(temp_geo_class.__dict__)
         temp_geo_class.material = material
     if 'geometry' not in var_dict:
         var_dict.update({'geometry':{}})
     
     name = check_repeat(name=name, group=var_dict['geometry'])
     var_dict['geometry'].update({f'{name}':temp_geo_class})
+    print(var_dict['geometry'])
         
 
     with dpg.table_row(parent="object list",label="new_row"):
@@ -135,9 +129,7 @@ def obj_edit_func(sender,app_data,user_data):
     if name_label in var_dict['geometry']:
         #print('i am in!')
         temp_geo = var_dict['geometry'][name_label]
-    attr_dict = temp_geo.__dict__.copy()
-    attr_dict.pop('material')
-    attr_dict.pop('eps_fun')
+    attr_dict = temp_geo.__dict__
 
     
 
@@ -172,7 +164,7 @@ def obj_edit_func(sender,app_data,user_data):
             with dpg.group():
                 dpg.add_text("Name:")
                 
-                dpg.add_text("Material:")
+                #dpg.add_text("Material:")
                 dpg.add_text("Structure:")
 
 
@@ -181,12 +173,12 @@ def obj_edit_func(sender,app_data,user_data):
                     label="",
                     default_value= name_label,)
                 
-                obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=temp_geo.material)
+                #obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=temp_geo.material)
                 obj_structure = dpg.add_text(
                     default_value=f"{stru}")
                 print(temp_geo.material)
                 
-        with dpg.child_window(height = 400):
+        with dpg.child_window(height = 300,width=500):
             
             with dpg.group(horizontal=True):
                 keys = dpg.group()
@@ -197,11 +189,69 @@ def obj_edit_func(sender,app_data,user_data):
                         dpg.add_text(f"{attrs[0]}")
 
                 with values:
-                    for attrs in list(attr_dict.items()):
-                        
-                    
-                        dpg.add_text(f"{attrs[1]}")
+                    with dpg.group():
+                        for attrs in list(attr_dict.items()):
+                                default_val = var_dict['geometry'][f'{name_label}'].__dict__[f'{attrs[0]}']
+                                #print(f'{attrs[0]}')
+                                def update(sender,app_data,user_data):
+                                    #item = user_data[0]
+                                    type = user_data[0]
+                                    key = user_data[1]
 
+                                    source_val = dpg.get_value(sender)
+                                    #dpg.set_value(item=item,value=source_val[0:-1])
+                                    if type == '3d':
+                                        temp = source_val[0:-1]
+                                    else:
+                                        temp = source_val
+
+                                    var_dict['geometry'][f'{name_label}'].__dict__[f'{key}'] = temp
+
+                                    print(f"{key}:{var_dict['geometry'][f'{name_label}'].__dict__[f'{key}']}")
+                                    print(var_dict['geometry'][f'{name_label}'].__dict__)
+
+
+                                    
+                                    #print(f'{attrs[0]}:{source_val[0:-1]}')
+                                
+                                    
+                            
+                                if isinstance(attrs[1], list):
+                                    #print(len(attrs[1]))
+
+                                    #txt=dpg.add_text("dummy",tag=f'dum_{attrs[0]}',show= True)
+                                    
+                                    
+
+                                    coord = dpg.add_drag_floatx(tag=f'slider_{name_label}_{attrs[0]}', 
+                                                                min_value=-100.0,
+                                                                max_value=100.0,
+                                                                default_value=default_val,
+                                                                speed=10,
+                                                                size=len(attrs[1]),
+                                                                callback= update, user_data=['3d',attrs[0]])
+                                            
+                                    
+                                    
+
+
+                                elif isinstance(attrs[1], float):
+
+                                    number = dpg.add_input_float(tag=f"{name_label}_{attrs[0]}",
+                                                                 default_value=default_val,
+                                                                 min_value=0.0,
+                                                                 min_clamped = True,
+                                                                 step=0.01,
+                                                                 callback=update, user_data=[None,attrs[0]])
+                                    #print("1")
+                                elif isinstance(attrs[1], str):
+                                    obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=default_val)
+                                elif attrs[1] is None:
+                                    dpg.add_text("TBD")              
+                        #dpg.add_text(f"{attrs[1]}")
+        def update_geometry():
+
+            pass
 
 
         with dpg.group(horizontal=True):
@@ -301,6 +351,7 @@ main_window = dpg.window(
 with main_window:
     title = dpg.add_text("Hello, this is main window")
     btn_obj = dpg.add_button(label="add object",callback=add_obj)
+
 
 
 
