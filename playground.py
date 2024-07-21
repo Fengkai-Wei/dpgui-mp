@@ -1,71 +1,48 @@
 import dearpygui.dearpygui as dpg
+import pyvista as pv
+import numpy as np
+
+reso = 50
+
+
+# 创建球体
+sphere = pv.Sphere(radius=1.0, center=(0, 0, 0), theta_resolution=reso,phi_resolution=reso)
+
+
+# 创建立方体
+cube = pv.Cube(center=(2, 0, 0))
+
+# 创建圆柱体
+cylinder = pv.Cylinder(radius=0.5, height=2.0, center=(-2, 0, 0),resolution=reso)
+
+
+# 合并形状
+combined = sphere + cube + cylinder
+
+
+
+# 在z=0位置进行切片
+#slice_z = combined.slice(normal='z', origin=(0, 0, 0))
+
+
+# 获取切片后顶点坐标
+#vertices = slice_z.points
+
 dpg.create_context()
-import dearpygui.demo as demo
+dpg.create_viewport(title='Custom Title', width=600, height=600)
 
-def add_win(sender):
-    with dpg.window(label="dddddd"):
-        dpg.add_button(label="exit",callback=hide_tag)
-
-                   
-def hide_tag(sender,app_data):
-    
-    if  dpg.get_item_configuration(dpg.get_item_parent(sender))['show']:
-        dpg.hide_item(item=dpg.get_item_parent(sender))
-        print('hide')
-    else:
-        pass
-
-def show_tag(sender):
-    
-    if not dpg.get_item_configuration(100)['show']:
-        dpg.show_item(item=100)
-        print("show")
-    else:
-        print(dpg.get_item_configuration(100)['show'])
-        pass
+with dpg.window(label='main',width=600,height=600):
+    dpg.add_text("plot control")
+    with dpg.group():
+        with dpg.plot():
+            dpg.add_plot_axis(dpg.mvXAxis, label="", no_tick_labels=True)
+            with dpg.plot_axis(dpg.mvYAxis, label="", no_tick_labels=True):
+                pass
+        slider = dpg.add_slider_float(min_value=-5.,max_value=5.,default_value=0.)
 
 
-def debug(sender):
-    dpg.show_debug()
-
-def item_registry(sender):
-    dpg.show_item_registry()
-
-demo.show_demo()
-
-with dpg.window(label="show window",tag = 100,show=True):
-    dpg.add_button(label="exit",callback=hide_tag)
-    dpg.add_input_text(label="string", default_value="1111111111")
-
-
-with dpg.window(label="Example Window",width=500,height=400,pos=(500,0),tag = 114,no_title_bar=True):
-    dpg.add_text("Hello, world",tag='hw')
-    #dpg.add_button(label="Save",callback=add_win)
-    dpg.add_input_text(label="string", default_value="Quick brown fox")
-    dpg.add_slider_float(label="float", default_value=0.273, max_value=1)
-    dpg.add_button(label="show win",callback=show_tag)
-    dpg.add_text(f"Hello, world")
-    dpg.add_button(label="debug",callback=debug)
-    dpg.add_button(label="item",callback=item_registry)
-
-dpg.show_documentation()
-
-
-
-
-
-
-
-dpg.create_viewport(title='It is a VIEWPORT', width=1440, height=900)
 
 dpg.setup_dearpygui()
 dpg.show_viewport()
-while dpg.is_dearpygui_running():
-    # insert here any code you would like to run in the render loop
-    # you can manually stop by using stop_dearpygui()
-
-
-    dpg.render_dearpygui_frame()
-
-
+dpg.start_dearpygui()
 dpg.destroy_context()
