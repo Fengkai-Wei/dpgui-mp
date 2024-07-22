@@ -6,7 +6,8 @@ reso = 15
 
 
 # 创建球体
-sphere = pv.Sphere(radius=1.0, center=(0, 0, 0), theta_resolution=reso,phi_resolution=reso)
+#sphere = pv.Sphere(radius=1.0, center=(0, 0, 0), theta_resolution=reso,phi_resolution=reso)
+
 
 
 
