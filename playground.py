@@ -31,14 +31,35 @@ combined = sphere + cube + cylinder
 dpg.create_context()
 dpg.create_viewport(title='Custom Title', width=600, height=600)
 
+def pv2dpg_slice(norm, sliced_points):
+    old_arr = np.array(sliced_points)
+    new_arr = np.delete(old_arr, norm, 1)
+    new_row = new_arr[0]
+    new_arr = np.vstack((new_arr, new_row))
+    return new_arr.transpose()
+
+
 with dpg.window(label='main',width=600,height=600):
     dpg.add_text("plot control")
     with dpg.group():
         with dpg.plot():
-            dpg.add_plot_axis(dpg.mvXAxis, label="", no_tick_labels=True)
+            xaxis = dpg.add_plot_axis(dpg.mvXAxis, label="", no_tick_labels=True)
             with dpg.plot_axis(dpg.mvYAxis, label="", no_tick_labels=True):
-                pass
-        slider = dpg.add_slider_float(min_value=-5.,max_value=5.,default_value=0.)
+                dpg.add_area_series(x = [],y = [],tag='xy view',fill=[0,50,100,190],contribute_to_bounds =True)
+                #dpg.fit_axis_data(dpg.top_container_stack())
+            dpg.fit_axis_data(xaxis)
+
+            def update_z_plot(sender,app_data, user_data):
+                pos = float(dpg.get_value(sender))
+                obj_to_slice = user_data
+                slice_z = obj_to_slice.slice(normal='z', origin=(0, 0, pos))
+                data = pv2dpg_slice(norm = 2,sliced_points=slice_z.points).tolist()
+                dpg.set_value('xy view',value = [data[0],data[1]])
+                print(dpg.get_value('xy view'))
+                
+
+
+        slider = dpg.add_slider_float(min_value=-5.,max_value=5.,default_value=0.,callback=update_z_plot,user_data=cube)
 
 
 
