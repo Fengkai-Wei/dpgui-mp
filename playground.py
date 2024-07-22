@@ -121,7 +121,7 @@ with dpg.window(label='main',width=-1,height=600):
             slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_yz,(0,1,0),1])
     
     with dpg.subplots(2,2):
-        for i in range(4):
+        for i in range(3):
             with dpg.plot(label="YZ Plane", height=400):
                 dpg.add_plot_axis(dpg.mvXAxis, label="y",)
 
