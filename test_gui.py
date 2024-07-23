@@ -4,33 +4,54 @@ import time
 import global_vars
 import numpy as np
 import copy
+from meep.geom import Medium,Vector3
 
 import var_manage as vm
 global_vars.init()
 from  global_vars import var_dict, dum_geo,dum_block,dum_cylinder
 
+def _help(message):
+    last_item = dpg.last_item()
+    group = dpg.add_group(horizontal=True)
+    dpg.move_item(last_item, parent=group)
+    dpg.capture_next_item(lambda s: dpg.move_item(s, parent=group))
+    t = dpg.add_text("[!]", color=[0, 255, 0])
+    with dpg.tooltip(t):
+        dpg.add_text(message)
 
 
-def test_fun(sender,app_data,user_data):
-    print(user_data)
-    #print(f"Hello, I am item: {dpg.get_item_pos(sender)}")
+def reorder_obj(sender, app_data,user_data):
+    target_pos = sender
+    from_pos = user_data
+    name = dpg.get_item_label(from_pos)
     with dpg.table_row(parent="object list",label="new_row"):
         last_row = dpg.last_item()
-        dpg.add_selectable(label=f"{user_data}")
+        dpg.add_selectable(label=f"{name}")
+        with dpg.drag_payload(parent=dpg.last_item(),):
+            dpg.add_text(f"{name}")
+
+        shown_label = dpg.last_item()
         with dpg.popup(parent=dpg.last_item()):
             last_pop = dpg.last_container()
-            dpg.add_text("delete")
-            dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
-            dpg.push_container_stack(dpg.add_menu(label="Tools"))
-            dpg.add_menu_item(label="Show Logger")
-            dpg.add_menu_item(label="Show About")
-            dpg.pop_container_stack()
+            #dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
+
+            dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"), dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del"),))
+            dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=[shown_label,stru])
+            dpg.add_menu_item(label="more1")
+            dpg.add_menu_item(label="more2")
+    with dpg.table_row(parent="object list"):
+        dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
+
+
+
 
 def add_obj(sender,app_data,user_data):
 
     object_add_window = dpg.window(
         label = "Main Window Add Object",
+        width=400,
         modal=True,
+        pos=(300,0)
     )
     
     with object_add_window:
@@ -40,7 +61,7 @@ def add_obj(sender,app_data,user_data):
                 dpg.add_text("Name:")
                 dpg.add_text("Strucutre:")
                 dpg.add_text("Material:")
-            with dpg.group(horizontal=False):
+            with dpg.group(horizontal=False,width=200):
                 obj_name_input = dpg.add_input_text(
                     label="",
                     default_value="new object",
@@ -51,9 +72,12 @@ def add_obj(sender,app_data,user_data):
                     no_stru = user_data[1]
                     dpg.configure_item(main_add,enabled = True)
                     dpg.hide_item(no_stru)
-
-                stru = dpg.add_combo(items=list(var_dict['structure'].keys()),default_value=None,callback=dum_print,user_data=['main_add','no_stru_alert'])
-                material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=None)
+                with dpg.group():
+                    stru = dpg.add_combo(items=list(var_dict['structure'].keys()),default_value='REQUIRED',callback=dum_print,user_data=['main_add','no_stru_alert'])
+                    _help(
+                        "The structure of an object (e.g. Cylinder)\n"
+                        "*MUST* be specified before creation of object.")
+                material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value='Empty')
 
                 def input_prepare(stru,input,mat):
                     last_win = dpg.last_root()
@@ -66,7 +90,10 @@ def add_obj(sender,app_data,user_data):
                     dpg.delete_item(last_win)
                         
         no_structure_alert = dpg.tooltip(parent="main_add",tag='no_stru_alert')
-        dpg.add_button(label="add",tag='main_add',callback=lambda: input_prepare(stru=dpg.get_value(stru),input=obj_name_input,mat=dpg.get_value(material)),enabled= False,)
+        #print(dpg.get_value(stru), obj_name_input,dpg.get_value(material))
+        dpg.add_button(label="add",tag='main_add',
+                       callback=lambda: input_prepare(stru=dpg.get_value(stru),input=obj_name_input,mat=dpg.get_value(material)),
+                       enabled= False,)
         
         with no_structure_alert:
             dpg.add_text('Structure must be specified.')
@@ -103,12 +130,16 @@ def obj_add_func(sender,app_data,user_data):
     
     name = check_repeat(name=name, group=var_dict['geometry'])
     var_dict['geometry'].update({f'{name}':temp_geo_class})
+    var_dict['geometry'][f'{name}'] = var_dict['geometry'].pop(f'{name}')
     print(var_dict['geometry'])
         
-
+    
     with dpg.table_row(parent="object list",label="new_row"):
         last_row = dpg.last_item()
         dpg.add_selectable(label=f"{name}")
+        with dpg.drag_payload(parent=dpg.last_item(),):
+            dpg.add_text(f"{name}")
+
         shown_label = dpg.last_item()
         with dpg.popup(parent=dpg.last_item()):
             last_pop = dpg.last_container()
@@ -118,6 +149,13 @@ def obj_add_func(sender,app_data,user_data):
             dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=[shown_label,stru])
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
+    with dpg.table_row(parent="object list"):
+        dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
+
+
+def reverse_dict(from_dict, find_val):
+    key = next((k for k, v in from_dict.items() if v == find_val), None)
+    return key
 
 
 
@@ -146,17 +184,37 @@ def obj_edit_func(sender,app_data,user_data):
         combo_material = item[1]
         old_val = value[0]
         new_val = value[1]
-        print(f'old val: {old_val}, new val: {new_val}')
+        #print(f'old val: {old_val}, new val: {new_val}')
+
         vm.rm_var(key=str(old_val),dict=var_dict['geometry'])
+
         print(f"dict deleted: {var_dict['geometry']}")
         if new_val in var_dict['geometry']:
             new_val = check_repeat(name=new_val,group=var_dict['geometry'])
         else:
             pass
-        temp_geo.material = dpg.get_value(combo_material)
+        material_key = dpg.get_value(combo_material)
+        #print(material_key)
+        if material_key == 'Empty':
+            material_value = 'Empty'
+        else:
+
+            material_value = var_dict['material'][f'{material_key}']
+        #print(material_value)
+        listed_obj_ids = dpg.get_item_children(item='object list')[1]
+        list_order_label = []
+        for id in listed_obj_ids:
+            select_id = id+1
+            list_order_label.append(dpg.get_item_label(select_id))
+        print(list_order_label)
+
+        temp_geo.material = material_value
         var_dict['geometry'].update({new_val:temp_geo})
         dpg.set_item_label(item=label_in_list,label=new_val)
+        var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
         print(f"dict new: {var_dict['geometry']}")
+
+
 
     with object_edit_window:
         dpg.configure_item(dpg.last_root(), on_close=lambda: dpg.delete_item(dpg.last_root()))
@@ -172,6 +230,7 @@ def obj_edit_func(sender,app_data,user_data):
                 obj_name_input = dpg.add_input_text(
                     label="",
                     default_value= name_label,)
+                _help("Won't be updated automatically.")
                 
                 #obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=temp_geo.material)
                 obj_structure = dpg.add_text(
@@ -185,8 +244,11 @@ def obj_edit_func(sender,app_data,user_data):
                 values = dpg.group()
                 with keys:
                     for attrs in list(attr_dict.items()):
-                    
-                        dpg.add_text(f"{attrs[0]}")
+                        if attrs[0][0] == '_':
+                            temp = attrs[0][1:]
+                        else:
+                            temp = attrs[0]
+                        dpg.add_text(f"{temp}")
 
                 with values:
                     with dpg.group():
@@ -202,8 +264,13 @@ def obj_edit_func(sender,app_data,user_data):
                                     #dpg.set_value(item=item,value=source_val[0:-1])
                                     if type == '3d':
                                         temp = source_val[0:-1]
+                                        temp = Vector3(x= temp[0],
+                                                       y= temp[1],
+                                                       z= temp[2])
                                     else:
                                         temp = source_val
+                                    
+
 
                                     var_dict['geometry'][f'{name_label}'].__dict__[f'{key}'] = temp
 
@@ -215,9 +282,9 @@ def obj_edit_func(sender,app_data,user_data):
                                     #print(f'{attrs[0]}:{source_val[0:-1]}')
                                 
                                     
-                            
-                                if isinstance(attrs[1], list):
-                                    #print(len(attrs[1]))
+                                print(attrs[1])
+                                if isinstance(attrs[1], Vector3):
+                                    #print(attrs[0])
 
                                     #txt=dpg.add_text("dummy",tag=f'dum_{attrs[0]}',show= True)
                                     
@@ -226,9 +293,9 @@ def obj_edit_func(sender,app_data,user_data):
                                     coord = dpg.add_drag_floatx(tag=f'slider_{name_label}_{attrs[0]}', 
                                                                 min_value=-100.0,
                                                                 max_value=100.0,
-                                                                default_value=default_val,
+                                                                default_value=list(default_val),
                                                                 speed=10,
-                                                                size=len(attrs[1]),
+                                                                size=3,
                                                                 callback= update, user_data=['3d',attrs[0]])
                                             
                                     
@@ -244,9 +311,16 @@ def obj_edit_func(sender,app_data,user_data):
                                                                  step=0.01,
                                                                  callback=update, user_data=[None,attrs[0]])
                                     #print("1")
-                                elif isinstance(attrs[1], str):
+                                elif attrs[0] == 'material':
+                                    if default_val != 'Empty':
+                                        default_val = reverse_dict(from_dict=var_dict['material'],find_val=default_val)
+                                        print(default_val)
+                                    else:
+                                        default_val = 'Empty'
+
                                     obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=default_val)
-                                elif attrs[1] is None:
+                                    _help("Won't be Updated automatically.")
+                                else:
                                     dpg.add_text("TBD")              
                         #dpg.add_text(f"{attrs[1]}")
         def update_geometry():
@@ -287,7 +361,7 @@ object_window = dpg.window(
 object_list_table = dpg.table(
     label="object list",
     tag="object list",
-    row_background=True,borders_innerH=True, borders_outerH=True, borders_innerV=True,borders_outerV=True
+    row_background=False,borders_innerH=True, borders_outerH=False, borders_innerV=False,borders_outerV=False,header_row=False
 
 )
 
@@ -300,9 +374,13 @@ with object_window:
         callback=add_obj,
     )
     
+    with dpg.child_window():
+        with object_list_table:
+            dpg.add_table_column()
+            with dpg.table_row(height=-1,tag='spacer'):
+                dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
 
-    with object_list_table:
-        dpg.add_table_column(label="Object list")
+        
 
 
 
