@@ -20,27 +20,52 @@ def _help(message):
         dpg.add_text(message)
 
 
+
+
 def reorder_obj(sender, app_data,user_data):
     target_pos = sender
     from_pos = user_data
-    name = dpg.get_item_label(from_pos)
-    with dpg.table_row(parent="object list",label="new_row"):
+    spacer_from_pos = from_pos - 2
+
+    name = dpg.get_item_label(dpg.get_item_children(from_pos)[1][0])
+    #name = dpg.get_item_label(item)
+
+    real_object_row = dpg.table_row(parent="object list",before=target_pos)
+    dpg.add_table_row(parent="object list",height=-1,before=target_pos)
+    dpg.add_selectable(parent=dpg.last_item(),height=-1,drop_callback= lambda s, a :
+                           reorder_obj(sender=dpg.get_item_parent(s), app_data=None, user_data= a)
+                           )
+    with real_object_row:
         last_row = dpg.last_item()
         dpg.add_selectable(label=f"{name}")
-        with dpg.drag_payload(parent=dpg.last_item(),):
+        shown_label = dpg.last_item()
+        with dpg.drag_payload(parent=dpg.last_item(),drag_data=last_row):
             dpg.add_text(f"{name}")
 
-        shown_label = dpg.last_item()
-        with dpg.popup(parent=dpg.last_item()):
+        
+        with dpg.popup(parent=shown_label):
             last_pop = dpg.last_container()
             #dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
 
             dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"), dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del"),))
-            dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=[shown_label,stru])
+            dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=shown_label)
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
-    with dpg.table_row(parent="object list"):
-        dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
+    dpg.delete_item(from_pos)
+    dpg.delete_item(spacer_from_pos)
+
+    shown_list = dpg.get_item_children('object list')[1]
+    list_order_label = []
+    for i in shown_list:
+        item =dpg.get_item_label(dpg.get_item_children(i)[1][0])
+        if item != "":
+            list_order_label.append(item)
+
+
+    
+    var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
+    print(f"dict new: {var_dict['geometry']}")
+
 
 
 
@@ -134,23 +159,31 @@ def obj_add_func(sender,app_data,user_data):
     print(var_dict['geometry'])
         
     
-    with dpg.table_row(parent="object list",label="new_row"):
+
+    spacer_row = dpg.table_row(parent="object list",height=-1,tag=f'{name} spacer row',before='spacer')
+    real_object_row = dpg.table_row(parent="object list",label=f"{name} object row",before='spacer')
+    with spacer_row:
+        dpg.add_selectable(height=-1,drop_callback= lambda s, a :
+                           reorder_obj(sender=dpg.get_item_parent(s), app_data=None, user_data= a)
+                           )
+    with real_object_row:
         last_row = dpg.last_item()
         dpg.add_selectable(label=f"{name}")
-        with dpg.drag_payload(parent=dpg.last_item(),):
+        shown_label = dpg.last_item()
+        with dpg.drag_payload(parent=dpg.last_item(),drag_data=last_row):
             dpg.add_text(f"{name}")
 
-        shown_label = dpg.last_item()
-        with dpg.popup(parent=dpg.last_item()):
+        
+        with dpg.popup(parent=shown_label):
             last_pop = dpg.last_container()
             #dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
 
             dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"), dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del"),))
-            dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=[shown_label,stru])
+            dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=shown_label)
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
-    with dpg.table_row(parent="object list"):
-        dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
+    
+
 
 
 def reverse_dict(from_dict, find_val):
@@ -160,14 +193,16 @@ def reverse_dict(from_dict, find_val):
 
 
 def obj_edit_func(sender,app_data,user_data):
-    name = user_data[0]
+    name = user_data
     name_label = dpg.get_item_label(name)
-    stru = user_data[1]
 
     if name_label in var_dict['geometry']:
         #print('i am in!')
         temp_geo = var_dict['geometry'][name_label]
     attr_dict = temp_geo.__dict__
+    stru = type(var_dict['geometry'][name_label]).__name__
+
+    print(f'new stru: {stru}')
 
     
 
@@ -378,7 +413,7 @@ with object_window:
         with object_list_table:
             dpg.add_table_column()
             with dpg.table_row(height=-1,tag='spacer'):
-                dpg.add_selectable(drop_callback=lambda: print("hello"),height=-1)
+                dpg.add_selectable(drop_callback= lambda s, a :reorder_obj(sender=dpg.get_item_parent(s), app_data=None, user_data= a),height=-1)
 
         
 
