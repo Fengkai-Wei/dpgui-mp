@@ -30,7 +30,7 @@ slice_z = combined.slice(normal='z', origin=(0, 0, 0))
 #vertices = slice_z.points
 
 dpg.create_context()
-dpg.create_viewport(title='Custom Title', width=1600, height=600)
+dpg.create_viewport(title='Custom Title', width=1280, height=900)
 
 
 def sort_vertices(vertices):
@@ -81,10 +81,15 @@ def update_plane(sender,app_data, user_data):
 
 
 
-with dpg.window(label='main',width=-1,height=600):
+with dpg.window(label='main',width=1280,height=900):
+    plotter = pv.Plotter()
     
-    dpg.add_text("plot control")
-    with dpg.group(horizontal= True):
+    plotter = pv.Plotter(off_screen=True)
+    plotter.add_mesh(cylinder)
+    plotter.camera_position = 'iso'
+
+    print(type(np.array(plotter.screenshot())))
+    with dpg.group(horizontal=True):
         with dpg.group():
             with dpg.plot(label="XY Plane", height=400):
                 dpg.add_plot_axis(dpg.mvXAxis, label="x",tag='xy_x')
@@ -107,23 +112,21 @@ with dpg.window(label='main',width=-1,height=600):
                     dpg.set_axis_limits('yz_y',ymin= -5,ymax=5)
 
             slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_yz,(1,0,0),0])
-
+    with dpg.group(horizontal=True):
         with dpg.group():
 
             with dpg.plot(label="XZ Plane", height=400):
                 dpg.add_plot_axis(dpg.mvXAxis, label="x",tag='xz_x',)
-                            
                 with dpg.plot_axis(dpg.mvYAxis, label="z",tag='xz_y'):
                     parent_yz = dpg.last_item()
                     dpg.set_axis_limits('xz_x',ymin= -5,ymax=5)
                     dpg.set_axis_limits('xz_y',ymin= -5,ymax=5)
 
             slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_yz,(0,1,0),1])
-    
-    with dpg.subplots(2,2):
-        for i in range(3):
-            with dpg.plot(label="YZ Plane", height=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="y",)
+        
+
+
+
 
 
 dpg.setup_dearpygui()

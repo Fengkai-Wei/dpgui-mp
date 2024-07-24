@@ -8,4 +8,4 @@ b = mp.Cylinder(material=mp.Medium(index= 2.0),
                         center=mp.Vector3(),
                         radius=0.05,
                         height=mp.inf)
-print(Vector3([0,0,0]))
+print(type(mp.Cylinder.__name__))
