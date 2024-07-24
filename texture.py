@@ -1,10 +1,10 @@
 import dearpygui.dearpygui as dpg
 import pyvista as pv
-import pyvistaqt as pvqt
+
 import numpy as np
 import array
 import os, shutil
-import cairosvg
+
 
 # 创建球体
 sphere = pv.Sphere(radius=1.0, center=(0, 0, 0))
@@ -23,7 +23,7 @@ slice_z = combined.slice(normal='z', origin=(0, 0, 0))
 
 
 # 可视化原始组合体和切片
-plotter =  pvqt.BackgroundPlotter(window_size=(500,500))
+plotter =  pv.Plotter(window_size=(500,500),off_screen= True)
 plotter.add_axes()
 
 plotter.add_mesh(combined,color='red', show_edges=False)
@@ -33,10 +33,12 @@ plotter.screenshot('texture.png')
 def update_position(plotter = plotter):
     pos = dpg.get_value('slider')
     plotter.camera_position = [(0.5, 0, pos), (0, 0, 0), (1, 1, 1)]
+    slice_z.save('testsave.stl')
+    slice_z.plot()
 
-    os.remove("texture.png")
-    plotter.save_graphic('img.svg')
-    cairosvg.svg2png(url='img.svg', write_to = 'texture.png')
+    #os.remove("texture.png")
+    #img = plotter.screenshot(transparent_background = True)
+    #print(img)
 
 
     #width, height, channels, data = dpg.load_image("texture.png")
