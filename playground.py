@@ -1,7 +1,9 @@
 
 import dearpygui.dearpygui as dpg
-import pyvista as pv
 import numpy as np
+import meep as mp
+import array
+import math
 def _help(message):
     last_item = dpg.last_item()
     group = dpg.add_group(horizontal=True)
@@ -10,131 +12,122 @@ def _help(message):
     t = dpg.add_text("[!]", color=[0, 255, 0])
     with dpg.tooltip(t):
         dpg.add_text(message)
-reso = 20
 
-
-# 创建球体
-sphere = pv.Sphere(radius=1.0, center=(0, 0, 0), theta_resolution=reso,phi_resolution=reso)
-
-
-# 创建立方体
-cube = pv.Cube(center=(2, 0, 0))
-cone = pv.Cone(center=(0,0,4),direction=(0, 0.0, 1),height=2.0,resolution=reso)
-
-# 创建圆柱体
-cylinder = pv.Cylinder(radius=0.5, height=2.0, center=(0, -3, 0),resolution=reso,direction=(0,1,0))
-
-
-# 合并形状
-combined = sphere + cube + cylinder + cone
-
-
-
-# 在z=0位置进行切片
-slice_z = combined.slice(normal='z', origin=(0, 0, 0))
-
-
-# 获取切片后顶点坐标
-#vertices = slice_z.points
+import matplotlib.pyplot as plt
 
 dpg.create_context()
 dpg.create_viewport(title='Custom Title', width=1280, height=900)
 
 
-def sort_vertices(vertices):
-    # 计算质心
-    centroid = np.mean(vertices, axis=0)
-    
-    # 计算每个顶点相对于质心的角度
-    def angle_from_centroid(vertex):
-        return np.arctan2(vertex[1] - centroid[1], vertex[0] - centroid[0])
-    
-    # 对顶点按角度进行排序
-    sorted_vertices = sorted(vertices, key=angle_from_centroid)
-    return np.array(sorted_vertices)
 
-def vista2dpg_sort(sliced_points, norm):
-    if len(sliced_points) == 0:
-        return np.array([[0],[0]])
-    flatten  = np.delete(arr=sliced_points, obj= norm,axis= 1)
-    sorted = sort_vertices(flatten)
-        
-    return sorted.transpose()
 
-obj_list = [cylinder,cube,sphere,cone]
+
+
 
 
 def update_plane(sender,app_data, user_data):
     slider_pos = dpg.get_value(sender)
-    objs = user_data[0]
-    parent = user_data[1]
-    normal = user_data[2]
-    project = user_data[3]
-    dpg.delete_item(parent,children_only= True)
-    origin = tuple(np.array(normal)*slider_pos)
-    #print(origin)
-    for i in objs:
-        slice = i.slice(normal=normal, origin=origin).points
-        sorted_points = vista2dpg_sort(slice,project).tolist()
-        #print(sorted_points)
-        dpg.add_area_series(parent=parent,x = sorted_points[0],y=sorted_points[1],fill=[255,50,100,255])
+    max_val = user_data[0]
+    norm = user_data[1]
+    size = user_data[2]
+    center = norm*slider_pos
+    #print(center)
+    center = tuple(center)
+
+    temp = sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center))
+    plt.close('all')
+    data = temp.get_images()[0].get_array().data
+    #print(data)
+
+    for i in range (101 * 101 * 4):
+        pix = i // 4
+        x = pix // 101
+        y = pix % 101
+
+        #print(x,y)
+
+        val = (max_val - data[x][y])/ max_val
+
+        try:
+            # R
+
+            if i % 4 == 0:
+                raw_data[i] = val
+
+            # G
+            elif i % 4 == 1:
+                raw_data[i] = val
+            # B
+            elif i % 4 == 2:
+                raw_data[i] = val
+            #A
+            elif i % 4 == 3:
+                pass
+
+        except IndexError:
+            print("i")
+            break
+
 
         
+cell_size = mp.Vector3(2,2,2)
 
+# A hexagon is defined as a prism with six vertices centered on the origin
+vertices = [mp.Vector3(-1,0),
+            mp.Vector3(-0.5,math.sqrt(3)/2),
+            mp.Vector3(0.5,math.sqrt(3)/2),
+            mp.Vector3(1,0),
+            mp.Vector3(0.5,-math.sqrt(3)/2),
+            mp.Vector3(-0.5,-math.sqrt(3)/2)]
 
+geometry = [mp.Prism(vertices, height=1.0, material=mp.Medium(index=3.5)),
+            mp.Cone(radius=1.0, radius2=0.1, height=2.0, material=mp.air)]
 
-
-
-
+sim = mp.Simulation(resolution=50,
+                    cell_size=cell_size,
+                    geometry=geometry)
 
 
 
 
 with dpg.window(label='main',width=1280,height=900):
-    plotter = pv.Plotter()
-    
-    plotter = pv.Plotter(off_screen=True)
-    plotter.add_mesh(cylinder)
-    plotter.camera_position = 'iso'
+    width, height, channels, data = dpg.load_image("sim_domain.png")
+    texture_data = []
+    for i in range(0, 101 * 101):
+        texture_data.append(255 / 255)
+        texture_data.append(255 / 255)
+        texture_data.append(255 / 255)
+        texture_data.append(255 / 255)
+    raw_data = array.array('f',texture_data)
 
-    print(type(np.array(plotter.screenshot())))
+
+
     with dpg.group(horizontal=True):
         with dpg.group():
-            with dpg.plot(label="XY Plane", height=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="x",tag='xy_x')
-                        
-                with dpg.plot_axis(dpg.mvYAxis, label="y",tag='xy_y'):
-                    parent_xy = dpg.last_item()
-                    dpg.set_axis_limits('xy_x',ymin= -5,ymax=5)
-                    dpg.set_axis_limits('xy_y',ymin= -5,ymax=5)
+            with dpg.texture_registry(show=False):
+                dpg.add_raw_texture(width=101, height=101, default_value=raw_data, format=dpg.mvFormat_Float_rgba, tag="texture_tag")
+            with dpg.group():
+                dpg.add_image("texture_tag",)
+            
 
-            slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_xy,(0,0,1),2])
 
-        with dpg.group():
+            slider = dpg.add_slider_float(width= 300,min_value=-2.,max_value=2.,default_value=0.0,callback=update_plane,user_data=[3.5*3.5,np.array([0,0,1]),(2,2,0)])
 
-            with dpg.plot(label="YZ Plane", height=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="y",tag='yz_x',)
-                            
-                with dpg.plot_axis(dpg.mvYAxis, label="z",tag='yz_y'):
-                    parent_yz = dpg.last_item()
-                    dpg.set_axis_limits('yz_x',ymin= -5,ymax=5)
-                    dpg.set_axis_limits('yz_y',ymin= -5,ymax=5)
 
-            slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_yz,(1,0,0),0])
     with dpg.group(horizontal=True):
-        with dpg.group():
 
-            with dpg.plot(label="XZ Plane", height=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="x",tag='xz_x',)
-                with dpg.plot_axis(dpg.mvYAxis, label="z",tag='xz_y'):
-                    parent_yz = dpg.last_item()
-                    dpg.set_axis_limits('xz_x',ymin= -5,ymax=5)
-                    dpg.set_axis_limits('xz_y',ymin= -5,ymax=5)
-
-            slider = dpg.add_slider_float(width= 300,min_value=-5.,max_value=5.,default_value=0.0,callback=update_plane,user_data=[obj_list,parent_yz,(0,1,0),1])
-        dpg.add_button(label='3D view',callback=lambda: combined.plot())
-        _help("DearPyGui have no 3D visualiser. 3D View is generated by PyVista.")
+        dpg.add_button(label='3D view',callback=lambda: update_3d_plot())
+        _help("DearPyGui have no 3D visualiser. 3D View is generated by Vispy.")
         
+
+        
+def update_3d_plot():
+    sim.plot3D()
+    plt.show()
+
+        
+
+
 
 
 
