@@ -4,6 +4,9 @@ import numpy as np
 import meep as mp
 import array
 import math
+import matplotlib.pyplot as plt
+
+plt.switch_backend('agg')
 def _help(message):
     last_item = dpg.last_item()
     group = dpg.add_group(horizontal=True)
@@ -13,7 +16,7 @@ def _help(message):
     with dpg.tooltip(t):
         dpg.add_text(message)
 
-import matplotlib.pyplot as plt
+
 
 dpg.create_context()
 dpg.create_viewport(title='Custom Title', width=1280, height=900)
