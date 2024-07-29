@@ -32,20 +32,11 @@ sim = mp.Simulation(resolution=50,
                     boundary_layers=pml_layers,
                     sources= sources,
 
-                    geometry=geometry)
+                    geometry=geometry
+                    )
 mp.verbosity(0)
 
 
-
-print(mp.simulation.Volume(size=(1,1,0)))
-a = sim.plot2D(output_plane=mp.simulation.Volume(center=(0.5,0,0),size=(0,2,2)))
-#plt.show()
-class dum:
-    def __init__(self,dpi):
-        self.dpi = dpi
-dummmy = dum(480)
-
-
-fig = plt.gcf().get_figure().figimage(X=None).make_image(renderer=dummmy)
-
-print(fig)
+from copy import copy,deepcopy
+sim2 = copy(sim)
+print(sim == sim2)

@@ -1,14 +1,23 @@
 import dearpygui.dearpygui as dpg
-import dearpygui.demo as demo
-import time
 import global_vars
 import numpy as np
 import copy
 from meep.geom import Medium,Vector3
+import meep as mp
+import array
+import matplotlib.pyplot as plt
+
+
+from matplotlib._pylab_helpers import Gcf
+plt.rcParams['figure.figsize'] = [3,3]
+plt.rcParams['figure.dpi'] = 50
+fig_resolution = 150
+
+fdtd_resolution = 50
 
 import var_manage as vm
 global_vars.init()
-from  global_vars import var_dict, dum_geo,dum_block,dum_cylinder
+from  global_vars import var_dict
 
 def _help(message):
     last_item = dpg.last_item()
@@ -19,6 +28,10 @@ def _help(message):
     with dpg.tooltip(t):
         dpg.add_text(message)
 
+def update_sim_obj(updates):
+    for attr,value in updates.items():
+        if hasattr(var_dict['current_sim'],attr):
+            setattr(var_dict['current_sim'], attr, value)
 
 
 
@@ -64,6 +77,7 @@ def reorder_obj(sender, app_data,user_data):
 
     
     var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
+    update_all_geo()
     print(f"dict new: {var_dict['geometry']}")
 
 
@@ -102,7 +116,7 @@ def add_obj(sender,app_data,user_data):
                     _help(
                         "The structure of an object (e.g. Cylinder)\n"
                         "*MUST* be specified before creation of object.")
-                material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value='Empty')
+                material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value='Air')
 
                 def input_prepare(stru,input,mat):
                     last_win = dpg.last_root()
@@ -123,23 +137,20 @@ def add_obj(sender,app_data,user_data):
         with no_structure_alert:
             dpg.add_text('Structure must be specified.')
 
-                              
+        # Update geometry 
 
-
-
-        #dpg.push_container_stack(dpg.add_menu(label="Themes"))
-        #dpg.add_menu_item(label="Edit",callback=lambda: print("Edited!"))
-        #dpg.add_menu_item(label=f"Delete ",callback=lambda: dpg.delete_item(dpg.get_item_parent(dpg.last_container())))
-        #dpg.pop_container_stack()
 
 
 def check_repeat(name, group):
     if name in group:
-        new_name = name + '-copy'
+        new_name = name + '-c'
         a = check_repeat(name=new_name,group=group)
         return a
     else:
         return name
+def update_all_geo():
+    geo_obj_list= list(var_dict['geometry'].values())
+    update_sim_obj({'geometry':geo_obj_list})
 
 def obj_add_func(sender,app_data,user_data):
     name = user_data[0]
@@ -149,7 +160,7 @@ def obj_add_func(sender,app_data,user_data):
     if stru in var_dict['structure']:
         temp_geo_class = copy.deepcopy(var_dict['structure'][stru])
         print(temp_geo_class.__dict__)
-        temp_geo_class.material = material
+        temp_geo_class.material = var_dict['material'][material]
     if 'geometry' not in var_dict:
         var_dict.update({'geometry':{}})
     
@@ -157,6 +168,9 @@ def obj_add_func(sender,app_data,user_data):
     var_dict['geometry'].update({f'{name}':temp_geo_class})
     var_dict['geometry'][f'{name}'] = var_dict['geometry'].pop(f'{name}')
     print(var_dict['geometry'])
+
+    update_all_geo()
+    print(f"list after addition: {var_dict['current_sim'].geometry}")
         
     
 
@@ -182,6 +196,8 @@ def obj_add_func(sender,app_data,user_data):
             dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=shown_label)
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
+
+    
     
 
 
@@ -189,6 +205,10 @@ def obj_add_func(sender,app_data,user_data):
 def reverse_dict(from_dict, find_val):
     key = next((k for k, v in from_dict.items() if v == find_val), None)
     return key
+
+
+
+
 
 
 
@@ -221,32 +241,35 @@ def obj_edit_func(sender,app_data,user_data):
         new_val = value[1]
         #print(f'old val: {old_val}, new val: {new_val}')
 
-        vm.rm_var(key=str(old_val),dict=var_dict['geometry'])
+        temp_name_list = copy.deepcopy(var_dict['geometry'])
+        del temp_name_list[old_val]
 
-        print(f"dict deleted: {var_dict['geometry']}")
-        if new_val in var_dict['geometry']:
-            new_val = check_repeat(name=new_val,group=var_dict['geometry'])
+        #print(f"dict deleted: {var_dict['geometry']}")
+        if new_val in temp_name_list:
+            new_val = check_repeat(name=new_val,group=temp_name_list)
         else:
             pass
         material_key = dpg.get_value(combo_material)
         #print(material_key)
         if material_key == 'Empty':
-            material_value = 'Empty'
+            material_value = mp.air
         else:
-
             material_value = var_dict['material'][f'{material_key}']
         #print(material_value)
+
+        """        
         listed_obj_ids = dpg.get_item_children(item='object list')[1]
         list_order_label = []
         for id in listed_obj_ids:
             select_id = id+1
             list_order_label.append(dpg.get_item_label(select_id))
         print(list_order_label)
+        """
 
         temp_geo.material = material_value
         var_dict['geometry'].update({new_val:temp_geo})
         dpg.set_item_label(item=label_in_list,label=new_val)
-        var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
+        #var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
         print(f"dict new: {var_dict['geometry']}")
 
 
@@ -264,7 +287,8 @@ def obj_edit_func(sender,app_data,user_data):
             with dpg.group():
                 obj_name_input = dpg.add_input_text(
                     label="",
-                    default_value= name_label,)
+                    default_value= name_label,
+                    )
                 _help("Won't be updated automatically.")
                 
                 #obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=temp_geo.material)
@@ -302,6 +326,9 @@ def obj_edit_func(sender,app_data,user_data):
                                         temp = Vector3(x= temp[0],
                                                        y= temp[1],
                                                        z= temp[2])
+                                    elif sender == 'obj combo edit':
+                                        temp =var_dict['material'][source_val]
+                                        
                                     else:
                                         temp = source_val
                                     
@@ -311,6 +338,7 @@ def obj_edit_func(sender,app_data,user_data):
 
                                     print(f"{key}:{var_dict['geometry'][f'{name_label}'].__dict__[f'{key}']}")
                                     print(var_dict['geometry'][f'{name_label}'].__dict__)
+                                    update_all_geo()
 
 
                                     
@@ -353,8 +381,9 @@ def obj_edit_func(sender,app_data,user_data):
                                     else:
                                         default_val = 'Empty'
 
-                                    obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=default_val)
-                                    _help("Won't be Updated automatically.")
+                                    obj_material = dpg.add_combo(items=list(var_dict['material'].keys()),default_value=default_val,
+                                                                 callback=update,user_data=[None,attrs[0]],tag='obj combo edit')
+                                    _help("Empty material will be saved as Air.")
                                 else:
                                     dpg.add_text("TBD")              
                         #dpg.add_text(f"{attrs[1]}")
@@ -418,7 +447,11 @@ with object_window:
         
 
 
-
+def update_3d_plot():
+    var_dict['current_sim'].plot3D()
+    print(var_dict['geometry'])
+    plt.show()
+    plt.close('all')
 
 
 """
@@ -453,17 +486,139 @@ with source_window:
 
         
 """
+view_window = dpg.window(
+    label="view window",
+    tag = "view window",
+
+
+    pos=(300,50)
+)
+
+
+def update_plane(sender, norm, size):
+
+    slider_pos = dpg.get_value(sender)
+
+    norm = norm
+    size = size
+
+    center = norm*slider_pos
+    center = np.array(var_dict['current_sim'].geometry_center) + center
+
+    center = tuple(center)
+
+    temp = sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center))
+    plt.axis('off')
+    plt.tight_layout(pad=0.0,h_pad=0.0,w_pad=0.0)
+
+    active_figure = Gcf.get_all_fig_managers()[0]
+
+
+    active_figure.canvas.draw()
+    w,h = active_figure.canvas.get_width_height()
+    buffer = np.frombuffer(active_figure.canvas.tostring_argb(), dtype=np.uint8)
+    plt.close('all')
+    buffer = buffer.reshape(h, w, 4)
+    buffer = np.roll(buffer, 3, axis=2)
+    antialiasing_thres = 200
+    white_pixels = (buffer[..., 0] >= antialiasing_thres) & (buffer[..., 1] >= antialiasing_thres) & (buffer[..., 2] >= antialiasing_thres)
+    buffer[white_pixels] = [0, 0, 0, 0]
+    buffer = array.array('f',buffer.flatten()/255)
+
+    if np.dot(norm, np.array([0,0,1])) == 1.:
+            raw_data_xy[:] = buffer
+
+    elif np.dot(norm, np.array([1,0,0])) == 1.:
+            raw_data_yz[:] = buffer
+
+    elif np.dot(norm, np.array([0,1,0])) == 1.:
+            raw_data_xz[:] = buffer
+
+def update_all_view():
+    cell_size = var_dict['current_sim'].cell_size
+    xspan = cell_size[0]
+    yspan = cell_size[1]
+    zspan = cell_size[2]
+    update_plane(sender='yz_slice_in_xy_plane', norm = np.array([1,0,0]), size = (0,yspan,zspan))
+    update_plane(sender='xy_slice_in_yz_plane', norm = np.array([0,0,1]), size = (xspan,yspan,0))
+    update_plane(sender='xz_slice_in_xy_plane', norm = np.array([0,1,0]), size = (xspan,0,zspan))
+
+
+
+def texture_generator(x,y):
+    temp_data = []
+    for i in range(x*y):
+        temp_data.append(255 / 255)
+        temp_data.append(255 / 255)
+        temp_data.append(255 / 255)
+        temp_data.append(0 / 255)
+    return temp_data
+
+
+
+with dpg.theme() as container_theme:
+
+
+    with dpg.theme_component(dpg.mvPlot):
+        dpg.add_theme_color(dpg.mvPlotCol_PlotBg, (255, 255, 255, 255), category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_color(dpg.mvPlotCol_XAxisGrid, (0, 0, 0, 150), category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_color(dpg.mvPlotCol_YAxisGrid, (0, 0, 0, 150), category=dpg.mvThemeCat_Plots)
+
+
+
+with view_window as view:
+        
+    raw_data_xy = array.array('f',texture_generator(fig_resolution,fig_resolution))
+    raw_data_yz = array.array('f',texture_generator(fig_resolution,fig_resolution))
+    raw_data_xz = array.array('f',texture_generator(fig_resolution,fig_resolution))
+
+    with dpg.texture_registry(show=False):
+        dpg.add_raw_texture(width=fig_resolution, height=fig_resolution, default_value=raw_data_xy, format=dpg.mvFormat_Float_rgba, tag="texture_xy")
+        dpg.add_raw_texture(width=fig_resolution, height=fig_resolution, default_value=raw_data_yz, format=dpg.mvFormat_Float_rgba, tag="texture_yz")
+        dpg.add_raw_texture(width=fig_resolution, height=fig_resolution, default_value=raw_data_xz, format=dpg.mvFormat_Float_rgba, tag="texture_xz")
+    with dpg.group():
+        with dpg.group(horizontal= True):
+            with dpg.plot(label="XY Plane",height = 400,width=400):
+                dpg.add_plot_axis(dpg.mvXAxis, label="x axis")
+                with dpg.plot_axis(dpg.mvYAxis, label="y axis"):
+                    dpg.add_image_series(texture_tag="texture_xy",bounds_min=[-1,-1],bounds_max=[1,1])
+
+                dpg.add_drag_line(label="yz slice", color=[255, 0, 0, 255],tag='yz_slice_in_xy_plane')
+                dpg.add_drag_line(label="xz slice", color=[255, 0, 0, 255],tag='xz_slice_in_xy_plane',vertical= False)
+
+            with dpg.plot(label="YZ Plane",height = 400,width=400):
+                dpg.add_plot_axis(dpg.mvXAxis, label="y axis")
+                with dpg.plot_axis(dpg.mvYAxis, label="z axis"):
+                    dpg.add_image_series(texture_tag="texture_yz",bounds_min=[-1,-1],bounds_max=[1,1])
+
+                dpg.add_drag_line(label="xz slice", color=[255, 0, 0, 255],tag='xz_slice_in_yz_plane')
+                dpg.add_drag_line(label="xy slice", color=[255, 0, 0, 255],tag='xy_slice_in_yz_plane',vertical= False)
+
+        with dpg.group(horizontal= True):
+            with dpg.plot(label="XZ Plane", height=400, width=400):
+                dpg.add_plot_axis(dpg.mvXAxis, label="x axis")
+                with dpg.plot_axis(dpg.mvYAxis, label="z axis"):
+                    dpg.add_image_series(texture_tag="texture_xz",bounds_min=[-1,-1],bounds_max=[1,1])
+
+                dpg.add_drag_line(label="yz slice", color=[255, 0, 0, 255],tag='yz_slice_in_xz_plane')
+                dpg.add_drag_line(label="xy slice", color=[255, 0, 0, 255],tag='xy_slice_in_xz_plane',vertical= False)
+            dpg.add_button(label='3D view',callback=lambda: update_3d_plot())
+            _help("DearPyGui have no 3D visualiser. 3D View is generated by Vispy.")
+
+
+dpg.bind_item_theme(view, container_theme)              
 
 main_window = dpg.window(
     label="main window",
     tag="main window",
-    width=600,
-    height=600, 
+    width=625,
+    height=100, 
     pos=(300,0)
 )
 with main_window:
     title = dpg.add_text("Hello, this is main window")
     btn_obj = dpg.add_button(label="add object",callback=add_obj)
+    dpg.add_button(label='get geometry',callback = lambda: update_sim_obj())
 
 
 
