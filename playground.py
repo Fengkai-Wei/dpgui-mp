@@ -17,7 +17,7 @@ def _help(message):
     with dpg.tooltip(t):
         dpg.add_text(message)
 
-import matplotlib.pyplot as plt
+
 
 dpg.create_context()
 dpg.create_viewport(title='Custom Title', width=1280, height=900)
