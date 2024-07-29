@@ -448,10 +448,25 @@ with object_window:
 
 
 def update_3d_plot():
+    
+    with dpg.window(
+        no_title_bar= True,
+        no_resize= True,
+        no_close= True,
+        modal= True,
+        pos = (600,400),
+        no_move= True,
+        width=-1,
+        height=-1,
+        tag="temp_waiting",
+        ):
+        with dpg.group(horizontal=True):
+            dpg.add_loading_indicator(label="Waiting...")
+            dpg.add_text(default_value="VisPy Visualisation")
     var_dict['current_sim'].plot3D()
-    print(var_dict['geometry'])
     plt.show()
     plt.close('all')
+    dpg.delete_item('temp_waiting')
 
 
 """
