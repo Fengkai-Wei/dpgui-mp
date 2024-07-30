@@ -47,4 +47,6 @@ Here I add a c-Si cylinder and specify freq = 1/1.55, please check the differenc
 |  Old   | New  |
 |  ----  | ----  |
 | ![image](https://github.com/user-attachments/assets/6aea3992-fee7-4366-b714-ae03cb9d4648)| ![image](https://github.com/user-attachments/assets/15f6fdbd-72dc-48d6-a210-833d9e48abe2)
- |
+
+
+The default value of c-Si makes it indistinguishable again air, no matter what frequency we passed to `Plot3D`. In new case, the structure is properly rendered.
