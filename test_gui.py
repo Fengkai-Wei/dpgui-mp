@@ -5,6 +5,7 @@ import copy
 from meep.geom import Medium,Vector3
 import meep as mp
 import array
+import gc
 import matplotlib.pyplot as plt
 
 
@@ -461,11 +462,16 @@ def update_3d_plot():
         tag="temp_waiting",
         ):
         with dpg.group(horizontal=True):
-            dpg.add_loading_indicator(label="Waiting...")
-            dpg.add_text(default_value="VisPy Visualisation")
-    var_dict['current_sim'].plot3D()
-    plt.show()
-    plt.close('all')
+            dpg.add_loading_indicator(label="Waiting...",
+                                      style=0,
+                                      radius=10,
+                                      circle_count=10,
+                                      speed=5
+                                      )
+    
+    temp_3d = copy.deepcopy(var_dict['current_sim'])
+    temp_3d.plot3D()
+    gc.collect()
     dpg.delete_item('temp_waiting')
 
 
