@@ -6,8 +6,8 @@ from meep.geom import Medium,Vector3
 import meep as mp
 import array
 import matplotlib.pyplot as plt
-
-
+import gc
+mp.verbosity(0)
 from matplotlib._pylab_helpers import Gcf
 plt.rcParams['figure.figsize'] = [3,3]
 plt.rcParams['figure.dpi'] = 50
@@ -39,15 +39,20 @@ def reorder_obj(sender, app_data,user_data):
     target_pos = sender
     from_pos = user_data
     spacer_from_pos = from_pos - 2
+    popup_from_pos = from_pos + 4
 
     name = dpg.get_item_label(dpg.get_item_children(from_pos)[1][0])
-    #name = dpg.get_item_label(item)
+    #name = dpg.get_item_label(item)   
 
-    real_object_row = dpg.table_row(parent="object list",before=target_pos)
-    dpg.add_table_row(parent="object list",height=-1,before=target_pos)
-    dpg.add_selectable(parent=dpg.last_item(),height=-1,drop_callback= lambda s, a :
+    spacer_row = dpg.table_row(parent="object list",height=-1,label=f'{name} spacer row',before=target_pos,)
+
+    real_object_row = dpg.table_row(parent="object list",label=f'{name} object row',before=target_pos)
+    with spacer_row:
+        spacer_self = dpg.last_item()
+        dpg.add_selectable(height=-1,drop_callback= lambda s, a :
                            reorder_obj(sender=dpg.get_item_parent(s), app_data=None, user_data= a)
                            )
+    
     with real_object_row:
         last_row = dpg.last_item()
         dpg.add_selectable(label=f"{name}")
@@ -60,11 +65,19 @@ def reorder_obj(sender, app_data,user_data):
             last_pop = dpg.last_container()
             #dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
 
-            dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"), dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del"),))
+            dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),
+                                                                        dict=var_dict['geometry']),#print("dict del"),
+                                                                        dpg.delete_item(last_row),#print("row del"),
+                                                                        dpg.delete_item(last_pop),#print("popup del"),
+                                                                        dpg.delete_item(spacer_self),
+                                                                        update_all_geo(),
+                                                                        update_all_view()
+                                                                        ))
             dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=shown_label)
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
     dpg.delete_item(from_pos)
+    dpg.delete_item(popup_from_pos)
     dpg.delete_item(spacer_from_pos)
 
     shown_list = dpg.get_item_children('object list')[1]
@@ -78,6 +91,7 @@ def reorder_obj(sender, app_data,user_data):
     
     var_dict['geometry'] = {k: var_dict['geometry'][k] for k in list_order_label}
     update_all_geo()
+    update_all_view()
     print(f"dict new: {var_dict['geometry']}")
 
 
@@ -170,6 +184,7 @@ def obj_add_func(sender,app_data,user_data):
     print(var_dict['geometry'])
 
     update_all_geo()
+    update_all_view()
     print(f"list after addition: {var_dict['current_sim'].geometry}")
         
     
@@ -177,6 +192,7 @@ def obj_add_func(sender,app_data,user_data):
     spacer_row = dpg.table_row(parent="object list",height=-1,tag=f'{name} spacer row',before='spacer')
     real_object_row = dpg.table_row(parent="object list",label=f"{name} object row",before='spacer')
     with spacer_row:
+        spacer_self = dpg.last_item()
         dpg.add_selectable(height=-1,drop_callback= lambda s, a :
                            reorder_obj(sender=dpg.get_item_parent(s), app_data=None, user_data= a)
                            )
@@ -192,7 +208,12 @@ def obj_add_func(sender,app_data,user_data):
             last_pop = dpg.last_container()
             #dpg.add_button(label=f"do it", callback=lambda: (dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del")))
 
-            dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"), dpg.delete_item(last_row),print("row del"), dpg.delete_item(last_pop),print("popup del"),))
+            dpg.add_menu_item(label="Delete",callback=lambda: (vm.rm_var(key=dpg.get_item_label(shown_label),dict=var_dict['geometry']),print("dict del"),
+                                                               dpg.delete_item(last_row),print("row del"),
+                                                               dpg.delete_item(last_pop),print("popup del"),
+                                                               dpg.delete_item(spacer_self),
+                                                               update_all_geo(),update_all_view()
+                                                               ))
             dpg.add_menu_item(label="Edit",callback=obj_edit_func,user_data=shown_label)
             dpg.add_menu_item(label="more1")
             dpg.add_menu_item(label="more2")
@@ -243,6 +264,7 @@ def obj_edit_func(sender,app_data,user_data):
 
         temp_name_list = copy.deepcopy(var_dict['geometry'])
         del temp_name_list[old_val]
+        gc.collect()
 
         #print(f"dict deleted: {var_dict['geometry']}")
         if new_val in temp_name_list:
@@ -339,6 +361,7 @@ def obj_edit_func(sender,app_data,user_data):
                                     print(f"{key}:{var_dict['geometry'][f'{name_label}'].__dict__[f'{key}']}")
                                     print(var_dict['geometry'][f'{name_label}'].__dict__)
                                     update_all_geo()
+                                    update_all_view()
 
 
                                     
@@ -354,10 +377,9 @@ def obj_edit_func(sender,app_data,user_data):
                                     
 
                                     coord = dpg.add_drag_floatx(tag=f'slider_{name_label}_{attrs[0]}', 
-                                                                min_value=-100.0,
-                                                                max_value=100.0,
+                                                                min_value=-10,
+                                                                max_value=10.0,
                                                                 default_value=list(default_val),
-                                                                speed=10,
                                                                 size=3,
                                                                 callback= update, user_data=['3d',attrs[0]])
                                             
@@ -463,7 +485,7 @@ def update_3d_plot():
         with dpg.group(horizontal=True):
             dpg.add_loading_indicator(label="Waiting...")
             dpg.add_text(default_value="VisPy Visualisation")
-    var_dict['current_sim'].plot3D()
+    var_dict['current_sim'].plot3D(frequency = var_dict['frequency'])
     plt.show()
     plt.close('all')
     dpg.delete_item('temp_waiting')
@@ -521,8 +543,8 @@ def update_plane(sender, norm, size):
     center = np.array(var_dict['current_sim'].geometry_center) + center
 
     center = tuple(center)
-
-    temp = sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center))
+    sim = var_dict['current_sim']
+    sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center))
     plt.axis('off')
     plt.tight_layout(pad=0.0,h_pad=0.0,w_pad=0.0)
 
@@ -592,18 +614,32 @@ with view_window as view:
         dpg.add_raw_texture(width=fig_resolution, height=fig_resolution, default_value=raw_data_yz, format=dpg.mvFormat_Float_rgba, tag="texture_yz")
         dpg.add_raw_texture(width=fig_resolution, height=fig_resolution, default_value=raw_data_xz, format=dpg.mvFormat_Float_rgba, tag="texture_xz")
     with dpg.group():
+        center = var_dict['current_sim'].geometry_center
+        size = var_dict['current_sim'].cell_size
+
+        x_max = center[0] + size[0]*0.5
+        x_min = center[0] - size[0]*0.5
+        y_max = center[1] + size[1]*0.5
+        y_min = center[1] - size[1]*0.5
+        z_max = center[2] + size[2]*0.5
+        z_min = center[2] - size[2]*0.5
+
         with dpg.group(horizontal= True):
             with dpg.plot(label="XY Plane",height = 400,width=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="x axis")
-                with dpg.plot_axis(dpg.mvYAxis, label="y axis"):
+                dpg.add_plot_axis(dpg.mvXAxis, label="x axis",tag='xy_x')
+                dpg.set_axis_limits(axis='xy_x', ymax=x_max, ymin=x_min)
+                with dpg.plot_axis(dpg.mvYAxis, label="y axis",tag='xy_y'):
+                    dpg.set_axis_limits(axis='xy_y', ymax=y_max, ymin=y_min)
                     dpg.add_image_series(texture_tag="texture_xy",bounds_min=[-1,-1],bounds_max=[1,1])
 
                 dpg.add_drag_line(label="yz slice", color=[255, 0, 0, 255],tag='yz_slice_in_xy_plane')
                 dpg.add_drag_line(label="xz slice", color=[255, 0, 0, 255],tag='xz_slice_in_xy_plane',vertical= False)
 
             with dpg.plot(label="YZ Plane",height = 400,width=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="y axis")
-                with dpg.plot_axis(dpg.mvYAxis, label="z axis"):
+                dpg.add_plot_axis(dpg.mvXAxis, label="y axis",tag='yz_y')
+                dpg.set_axis_limits(axis='yz_y', ymax=y_max, ymin=y_min)
+                with dpg.plot_axis(dpg.mvYAxis, label="z axis",tag='yz_z'):
+                    dpg.set_axis_limits(axis='yz_z', ymax=z_max, ymin=z_min)
                     dpg.add_image_series(texture_tag="texture_yz",bounds_min=[-1,-1],bounds_max=[1,1])
 
                 dpg.add_drag_line(label="xz slice", color=[255, 0, 0, 255],tag='xz_slice_in_yz_plane')
@@ -611,8 +647,10 @@ with view_window as view:
 
         with dpg.group(horizontal= True):
             with dpg.plot(label="XZ Plane", height=400, width=400):
-                dpg.add_plot_axis(dpg.mvXAxis, label="x axis")
-                with dpg.plot_axis(dpg.mvYAxis, label="z axis"):
+                dpg.add_plot_axis(dpg.mvXAxis, label="x axis",tag='xz_x')
+                dpg.set_axis_limits(axis='xz_x', ymax=x_max, ymin=x_min)
+                with dpg.plot_axis(dpg.mvYAxis, label="z axis",tag='xz_z'):
+                    dpg.set_axis_limits(axis='xz_z', ymax=z_max, ymin=z_min)
                     dpg.add_image_series(texture_tag="texture_xz",bounds_min=[-1,-1],bounds_max=[1,1])
 
                 dpg.add_drag_line(label="yz slice", color=[255, 0, 0, 255],tag='yz_slice_in_xz_plane')

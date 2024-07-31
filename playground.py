@@ -41,7 +41,7 @@ def update_plane(sender, norm, size):
     #print(center)
     center = tuple(center)
 
-    temp = sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center))
+    temp = sim.plot2D(output_plane=mp.simulation.Volume(size=size,center = center), eps_parameters = {'frequency':1/1.55} )
     plt.axis('off')
     plt.tight_layout(pad=0.0,h_pad=0.0,w_pad=0.0)
 
@@ -54,7 +54,7 @@ def update_plane(sender, norm, size):
     plt.close('all')
     buffer = buffer.reshape(h, w, 4)
     buffer = np.roll(buffer, 3, axis=2)
-    thres = 200
+    thres = 220
     
     white_pixels = (buffer[..., 0] >= thres) & (buffer[..., 1] >= thres) & (buffer[..., 2] >= thres)
     buffer[white_pixels] = [0, 0, 0, 0]
@@ -127,7 +127,7 @@ def update_plane(sender, norm, size):
 
 
 cell_size = mp.Vector3(2,2,2)
-from meep.materials import aSi
+from meep.materials import aSi,cSi,SiO2
 # A hexagon is defined as a prism with six vertices centered on the origin
 vertices = [mp.Vector3(-1,0),
             mp.Vector3(-0.5,math.sqrt(3)/2),
@@ -136,8 +136,10 @@ vertices = [mp.Vector3(-1,0),
             mp.Vector3(0.5,-math.sqrt(3)/2),
             mp.Vector3(-0.5,-math.sqrt(3)/2)]
 
-geometry = [mp.Prism(vertices, height=1.0, material=aSi),
-            mp.Cone(radius=1.0, radius2=0.1, height=2.0, material=mp.air)]
+geometry = [mp.Prism(vertices, height=1.0, material=cSi),
+            mp.Cone(radius=1.0, radius2=0.1, height=2.0, material=aSi),
+            mp.Block(size = (3,3,0.2),center=(0,0,0.5),material=mp.Medium(epsilon=9)),
+            mp.Block(size = (0.75,0.75,0.2),material=mp.Medium(epsilon=-0.32))]
 
 
 sources = [mp.Source(mp.ContinuousSource(frequency=0.15),
@@ -243,7 +245,7 @@ with dpg.window(label='main',width=1280,height=900) as win:
 
         
 def update_3d_plot():
-    sim.plot3D()
+    sim.plot3D(frequency = 0.01)
     plt.show()
 
 
