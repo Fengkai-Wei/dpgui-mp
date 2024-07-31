@@ -14,6 +14,7 @@ def _help(message):
     dpg.move_item(last_item, parent=group)
     dpg.capture_next_item(lambda s: dpg.move_item(s, parent=group))
     t = dpg.add_text("[!]", color=[0, 255, 0])
+    
     with dpg.tooltip(t):
         dpg.add_text(message)
 
@@ -54,11 +55,12 @@ def update_plane(sender, norm, size):
     plt.close('all')
     buffer = buffer.reshape(h, w, 4)
     buffer = np.roll(buffer, 3, axis=2)
+    plt.imsave(fname='testconvert.png',arr=buffer)
     thres = 200
     
     white_pixels = (buffer[..., 0] >= thres) & (buffer[..., 1] >= thres) & (buffer[..., 2] >= thres)
     buffer[white_pixels] = [0, 0, 0, 0]
-    plt.imsave(fname='testconvert.png',arr=buffer)
+    
 
     buffer = array.array('f',buffer.flatten()/255)
 
