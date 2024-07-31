@@ -8,6 +8,7 @@ data_below_1 = np.random.randn(10, 10) * 0.5 + 0.5  # Example data biased below 
 data_mixed = np.random.randn(10, 10) * 2 + 1        # Example mixed data
 two_data = np.ones((10,10))
 two_data[::2][::2] = 1.5
+two_data = two_data*10
 # Function to normalize data keeping 1 fixed
 def normalize_data(data):
     normalized_data = np.copy(data)
@@ -80,7 +81,7 @@ axes[1].set_title('Data Biased Below 1')
 axes[2].imshow(normalized_data_mixed, cmap=custom_cmap, vmin=0, vmax=2)
 axes[2].set_title('Mixed Data')
 
-axes[3].imshow(test, cmap=custom_cmap, vmin=0, vmax=2)
+axes[3].imshow(normalized_data_two, cmap=custom_cmap,)
 axes[3].set_title('Two Data')
 
 
