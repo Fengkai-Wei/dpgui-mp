@@ -37,7 +37,7 @@ def init():
         'structure':{
             #'Cylinder': dum_cylinder(),
             #'Block': dum_block(),
-            'Cylinder': mp.Cylinder(radius=0.0,height=1.0),
+            'Cylinder': mp.Cylinder(radius=0.25,height=1.0),
             'Block': mp.Block(size=(0,0,0)),
                      },
         'geometry':{},
@@ -45,6 +45,8 @@ def init():
         'boundary':[],
         'current_sim':mp.Simulation(cell_size = mp.Vector3(2,2,2),resolution=50),
         'monitors':{},
+        'frequency':1/1.55,
+
 
 
                 }
